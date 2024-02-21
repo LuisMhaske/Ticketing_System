@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticketing System</title>
+</head>
+<body>
+    <h1>Welcome to the Ticketing System</h1>
+    <a href="{{ url_for('create_ticket') }}">Create Ticket</a>
+    <br>
+    <a href="{{ url_for('hr_dashboard') }}">HR Dashboard</a>
+    <br>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+</body>
+</html>
