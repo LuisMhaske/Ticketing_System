@@ -23,6 +23,14 @@ class CommentForm(FlaskForm):
     submit = SubmitField('Submit Comment')
 
 
+class HRRegistrationForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+    # Include any other fields relevant for HR
+    submit = SubmitField('Register as HR')
+
+
 class TicketForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
     description = TextAreaField('Description', validators=[DataRequired()])
