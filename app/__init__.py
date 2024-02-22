@@ -20,11 +20,13 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///ticketing_system.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.example.com')
-    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'sandbox.smtp.mailtrap.io')
+    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 2525))
     app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() in ['true', '1', 't']
-    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_TLS', 'false').lower() in ['true', '1', 't']
+    app.config['MAIL_USERNAME'] = os.getenv('492ecf1d9d05b1')
+    app.config['MAIL_PASSWORD'] = os.getenv('d6bb8a6dd14d8f')
+
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -51,9 +53,12 @@ def create_app():
         if form.validate_on_submit():
             user = User.query.filter_by(email=form.email.data).first()
             if user and user.check_password(form.password.data):
-                login_user(user)
-                flash('Login successful.', 'success')
-                return redirect(url_for('dashboard'))
+                if user.is_hr and user.is_approved:  # Check if user is an approved HR
+                    login_user(user)
+                    flash('Login successful.', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash('You are not authorized to log in.', 'danger')
             else:
                 flash('Invalid email or password.', 'danger')
         return render_template('login.html', form=form)
@@ -76,8 +81,20 @@ def create_app():
             flash('Ticket created successfully!', 'success')
             if User.query.filter_by(is_hr=True).count() > 0:
                 hr_emails = [user.email for user in User.query.filter_by(is_hr=True).all()]
-                msg = Message('New Ticket Created', sender='your_email@example.com', recipients=hr_emails)
-                msg.body = 'A new ticket has been created. Please check the HR dashboard.'
+                msg = Message('New Ticket Created', sender=current_user.email, recipients=hr_emails)
+                msg.body = f'''
+                Dear HR,
+
+                A new ticket has been created with the following details:
+                Title: {form.title.data}
+                Description: {form.description.data}
+                Creator: {current_user.email}
+
+                Please check the HR dashboard for more details.
+
+                Best regards,
+                Your Company
+                '''
                 mail.send(msg)
             return redirect(url_for('index'))
         return render_template('associate/create_ticket.html', form=form)
@@ -122,7 +139,6 @@ def create_app():
 
     @app.route('/dashboard')
     @login_required
-    @hr_required
     def dashboard():
         if current_user.is_hr:
             tickets = Ticket.query.all()  # HR sees all tickets
@@ -134,24 +150,28 @@ def create_app():
 
     @app.route('/hr_signup', methods=['GET', 'POST'])
     def hr_signup():
-        if not current_user.is_authenticated:
-            # If no user is logged in, proceed with HR sign-up
+        if not current_user.is_authenticated:  # Only allow access if the user is not logged in
             form = HRRegistrationForm()
             if form.validate_on_submit():
-                user = User(email=form.email.data, password=form.password.data, is_hr=True, is_approved=False)
-                db.session.add(user)
-                db.session.commit()
-                flash('HR registration submitted for approval.', 'info')
-                return redirect(url_for('index'))  # Redirect to the index page after sign-up
-            return render_template('hr_signup.html', title='HR Registration', form=form)
-        elif not current_user.is_admin:
-            # If user is logged in but not an admin, deny access
-            flash('You do not have permission to access this page.', 'warning')
-            return redirect(url_for('index'))
+                try:
+                    # Create a new user object with HR privileges
+                    new_user = User(email=form.email.data, password_hash=generate_password_hash(form.password.data),
+                                    is_hr=True, is_approved=False)
+                    db.session.add(new_user)  # Add the new user to the database session
+                    db.session.commit()  # Commit the changes to the database
+                    print("User added to the database:", new_user)  # Debug print to check if user is added
+                    flash('HR registration submitted for approval.', 'info')  # Show a success message
+                    return redirect(url_for('index'))  # Redirect to the index page
+                except Exception as e:
+                    flash('An error occurred while processing your request.', 'danger')  # Show an error message
+                    print("Error:", e)  # Print the error for debugging purposes
+                    db.session.rollback()  # Rollback changes in case of error
+            else:
+                print("Form errors:", form.errors)  # Debug print to check form errors
+            return render_template('hr_signup.html', title='HR Registration', form=form)  # Render the sign-up form
         else:
-            # If user is logged in and is an admin, redirect to index page
-            flash('You are already logged in as an admin.', 'info')
-            return redirect(url_for('index'))
+            flash('You are already logged in.', 'info')  # Show a message if the user is already logged in
+            return redirect(url_for('index'))  # Redirect to the index page
 
     @app.route('/admin/hr_approvals')
     @login_required
@@ -159,9 +179,9 @@ def create_app():
         if not current_user.is_admin:
             return redirect(url_for('index'))
         pending_hr_users = User.query.filter_by(is_hr=True, is_approved=False).all()
-        return render_template('hr_approvals.html', users=pending_hr_users)
+        return render_template('admin/hr_approvals.html', users=pending_hr_users)
 
-    @app.route('/admin/approve_hr/<int:user_id>')
+    @app.route('/admin/approve_hr/<int:user_id>', methods=['POST'])
     @login_required
     def approve_hr(user_id):
         if not current_user.is_admin:

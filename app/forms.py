@@ -24,9 +24,9 @@ class CommentForm(FlaskForm):
 
 
 class HRRegistrationForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+    email = StringField('HR Email', validators=[DataRequired(), Email()])
+    password = PasswordField('HR Password', validators=[DataRequired()])
+    confirm_password = PasswordField('HR Confirm Password', validators=[DataRequired(), EqualTo('password')])
     # Include any other fields relevant for HR
     submit = SubmitField('Register as HR')
 
