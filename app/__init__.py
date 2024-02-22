@@ -1,4 +1,6 @@
-from flask import Flask, render_template, redirect, url_for, flash
+from functools import wraps
+
+from flask import Flask, render_template, redirect, url_for, flash, abort
 
 from flask_login import login_required, current_user, login_user, logout_user, LoginManager
 from flask_mail import Mail, Message
@@ -120,6 +122,7 @@ def create_app():
 
     @app.route('/dashboard')
     @login_required
+    @hr_required
     def dashboard():
         if current_user.is_hr:
             tickets = Ticket.query.all()  # HR sees all tickets
@@ -194,4 +197,11 @@ def create_admin():
     else:
         print("Admin user already exists.")
 
+def hr_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_hr or not current_user.is_approved:
+            return abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
 
