@@ -1,18 +1,46 @@
 from flask import render_template, redirect, url_for, flash
+from flask_login import login_required, current_user, login_user, logout_user
+from flask import request
 from app import app, db, mail
-from app.forms import TicketForm
-from app.models import Ticket, User
+from app.forms import TicketForm, LoginForm, RegistrationForm, CommentForm
+from app.models import Ticket, User, Comment
 from flask_mail import Message
+from werkzeug.security import generate_password_hash
+
 
 @app.route('/')
 def index():
     return render_template('base.html')
 
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and user.check_password(form.password.data):
+            login_user(user)
+            flash('Login successful.', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid email or password.', 'danger')
+    return render_template('login.html', form=form)
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('index'))
+
+
 @app.route('/create_ticket', methods=['GET', 'POST'])
+@login_required
 def create_ticket():
     form = TicketForm()
     if form.validate_on_submit():
-        ticket = Ticket(title=form.title.data, description=form.description.data)
+        ticket = Ticket(title=form.title.data, description=form.description.data, creator_id=current_user.id)
         db.session.add(ticket)
         db.session.commit()
         flash('Ticket created successfully!', 'success')
@@ -24,8 +52,53 @@ def create_ticket():
         return redirect(url_for('index'))
     return render_template('associate/create_ticket.html', form=form)
 
-@app.route('/hr/dashboard')
-def hr_dashboard():
-    tickets_new = Ticket.query.filter_by(status='New').count()
-    tickets_in_progress = Ticket.query.filter_by(status='Work in Progress').count()
-    return render_template('hr/dashboard.html', tickets_new=tickets_new, tickets_in_progress=tickets_in_progress)
+
+@app.route('/ticket/<int:ticket_id>')
+@login_required
+def view_ticket(ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    if current_user.id != ticket.creator_id and not current_user.is_hr:
+        flash('You are not authorized to view this ticket.', 'warning')
+        return redirect(url_for('index'))
+    return render_template('ticket_detail.html', ticket=ticket)
+
+
+@app.route('/ticket/<int:ticket_id>/comment', methods=['GET', 'POST'])
+@login_required
+def add_comment(ticket_id):
+    form = CommentForm()
+    ticket = Ticket.query.get_or_404(ticket_id)
+    if form.validate_on_submit():
+        if not current_user.is_hr and current_user.id != ticket.creator_id:
+            flash('You are not authorized to comment on this ticket.', 'warning')
+            return redirect(url_for('main.index'))
+        content = form.comment.data
+        comment = Comment(content=content, ticket_id=ticket_id, author_id=current_user.id)
+        db.session.add(comment)
+        db.session.commit()
+        flash('Your comment has been added.', 'success')
+        return redirect(url_for('view_ticket', ticket_id=ticket_id))
+    return render_template('add_comment.html', form=form, ticket_id=ticket_id)
+
+
+@app.route('/registration', methods=['GET','POST'])
+def registration():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        hashed_password = generate_password_hash(form.password.data)
+        new_user = User(email=form.email.data, password_hash=hashed_password )
+        db.session.add(new_user)
+        db.session.commit()
+        flash('Registration successful! you can log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('registration.html', form=form)
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    if current_user.is_hr:
+        tickets = Ticket.query.all()  # HR sees all tickets
+    else:
+        tickets = Ticket.query.filter_by(creator_id=current_user.id)  # Associates see only their tickets
+    return render_template('dashboard.html', tickets=tickets)

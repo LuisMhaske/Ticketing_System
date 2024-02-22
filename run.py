@@ -1,9 +1,9 @@
 from app import app, db
 
-# Ensure app context is set up
+# Ensure the Flask app context is set up
 app.app_context().push()
 
-# Create the database tables
+# Optionally, create database tables if they don't exist
 db.create_all()
 
 if __name__ == '__main__':
