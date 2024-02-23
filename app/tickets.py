@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
-from .models import Ticket, User
+from .models import Ticket
 from . import db
 
 tickets = Blueprint('tickets', __name__)
+
 
 @tickets.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -18,6 +19,7 @@ def create_ticket():
         return redirect(url_for('main.dashboard'))
     return render_template('create_ticket.html')
 
+
 @tickets.route('/dashboard', methods=['GET'])
 @login_required
 def dashboard():
@@ -26,6 +28,7 @@ def dashboard():
         return redirect(url_for('main.index'))
     tickets = Ticket.query.all()
     return render_template('dashboard.html', tickets=tickets)
+
 
 @tickets.route('/ticket/<int:ticket_id>', methods=['GET', 'POST'])
 @login_required

@@ -2,9 +2,9 @@ from _socket import gaierror
 from functools import wraps
 from smtplib import SMTPException
 
-from flask import Flask, render_template, redirect, url_for, flash, abort
+from flask import Flask, render_template, flash, abort, request, redirect, url_for
 
-from flask_login import login_required, current_user, login_user, logout_user, LoginManager
+from flask_login import login_required, login_user, logout_user, LoginManager, current_user
 from flask_mail import Mail, Message
 import os
 from werkzeug.security import generate_password_hash
@@ -48,22 +48,6 @@ def create_app():
     @app.route("/", methods=['GET'])
     def index():
         return render_template('base.html')
-
-    @app.route('/login', methods=['GET', 'POST'])
-    def login():
-        form = LoginForm()
-        if form.validate_on_submit():
-            user = User.query.filter_by(email=form.email.data).first()
-            if user and user.check_password(form.password.data):
-                if user.is_hr and user.is_approved:  # Check if user is an approved HR
-                    login_user(user)
-                    flash('Login successful.', 'success')
-                    return redirect(url_for('dashboard'))
-                else:
-                    flash('You are not authorized to log in.', 'danger')
-            else:
-                flash('Invalid email or password.', 'danger')
-        return render_template('login.html', form=form)
 
     @app.route('/logout')
     @login_required
@@ -159,7 +143,7 @@ def create_app():
             tickets = Ticket.query.filter_by(creator_id=current_user.id)  # Associates see only their tickets
         return render_template('dashboard.html', tickets=tickets)
 
-    from flask_login import current_user
+
 
     @app.route('/hr_signup', methods=['GET', 'POST'])
     def hr_signup():
@@ -205,7 +189,25 @@ def create_app():
         flash('HR user approved.')
         return redirect(url_for('hr_approvals'))
 
-    from flask import request, redirect, url_for
+    @app.route('/admin/disapprove_hr/<int:user_id>', methods=['POST'])
+    @login_required
+    def disapprove_hr(user_id):
+        if not current_user.is_admin:
+            return redirect(url_for('index'))
+
+        user = User.query.get_or_404(user_id)
+
+        # Set is_approved to False
+        user.is_approved = False
+
+        # Delete the HR request from the database
+        db.session.delete(user)
+
+        db.session.commit()
+
+        flash('HR approval disapproved and request deleted successfully!', 'success')
+
+        return redirect(url_for('hr_approvals'))
 
     @app.route('/ticket/<int:ticket_id>/change_status', methods=['POST'])
     @login_required
@@ -219,6 +221,18 @@ def create_app():
         else:
             flash('You are not authorized to change the status of this ticket.', 'danger')
         return redirect(url_for('view_ticket', ticket_id=ticket_id))
+
+    @app.route('/delete_ticket/<int:ticket_id>', methods=['POST'])
+    @login_required
+    def delete_ticket(ticket_id):
+        ticket = Ticket.query.get_or_404(ticket_id)
+        if current_user.is_hr or current_user.id == ticket.creator_id:
+            db.session.delete(ticket)
+            db.session.commit()
+            flash('Ticket deleted successfully!', 'success')
+        else:
+            flash('You are not authorized to delete this ticket.', 'warning')
+        return redirect(url_for('dashboard'))
 
     migrate = Migrate(app, db)
     return app
@@ -244,6 +258,7 @@ def create_admin():
         print("Admin user created.")
     else:
         print("Admin user already exists.")
+
 
 def hr_required(f):
     @wraps(f)

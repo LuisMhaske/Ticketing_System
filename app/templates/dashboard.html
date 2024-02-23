@@ -11,6 +11,7 @@
                         <th>Title</th>
                         <th>Description</th>
                         <th>Status</th>
+                        <th>Action</th>
                         <th>Action</th>  <!-- New column for viewing details -->
                     </tr>
                 </thead>
@@ -20,7 +21,14 @@
                             <td>{{ ticket.title }}</td>
                             <td>{{ ticket.description }}</td>
                             <td>{{ ticket.status }}</td>
-                            <td><a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}">View Details</a></td>
+                            <td>
+                                <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}">View Details</a>
+                            </td>
+                            <td>
+                                <form action="{{ url_for('delete_ticket', ticket_id=ticket.id) }}" method="post">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

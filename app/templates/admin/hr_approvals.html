@@ -16,9 +16,13 @@
                     <td>{{ loop.index }}</td>
                     <td>{{ user.email }}</td>
                     <td>
-                        <form action="{{ url_for('approve_hr',  user_id=user.id) }}" method="post">
+                        <form action="{{ url_for('approve_hr', user_id=user.id) }}" method="post" style="display: inline-block;">
                             <input type="hidden" name="user_id" value="{{ user.id }}">
                             <button type="submit" class="btn btn-success">Approve</button>
+                        </form>
+                        <form action="{{ url_for('disapprove_hr', user_id=user.id) }}" method="post" style="display: inline-block;">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <button type="submit" class="btn btn-danger">Disapprove</button>
                         </form>
                     </td>
                 </tr>
