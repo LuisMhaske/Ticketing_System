@@ -1,4 +1,6 @@
+from _socket import gaierror
 from functools import wraps
+from smtplib import SMTPException
 
 from flask import Flask, render_template, redirect, url_for, flash, abort
 
@@ -20,12 +22,12 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///ticketing_system.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'sandbox.smtp.mailtrap.io')
-    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 2525))
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'your.smtp.server.com')
+    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
     app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() in ['true', '1', 't']
     app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_TLS', 'false').lower() in ['true', '1', 't']
-    app.config['MAIL_USERNAME'] = os.getenv('492ecf1d9d05b1')
-    app.config['MAIL_PASSWORD'] = os.getenv('d6bb8a6dd14d8f')
+    app.config['MAIL_USERNAME'] = os.getenv('your email address/username')
+    app.config['MAIL_PASSWORD'] = os.getenv('your password')
 
 
     db.init_app(app)
@@ -79,23 +81,31 @@ def create_app():
             db.session.add(ticket)
             db.session.commit()
             flash('Ticket created successfully!', 'success')
-            if User.query.filter_by(is_hr=True).count() > 0:
-                hr_emails = [user.email for user in User.query.filter_by(is_hr=True).all()]
-                msg = Message('New Ticket Created', sender=current_user.email, recipients=hr_emails)
-                msg.body = f'''
-                Dear HR,
 
-                A new ticket has been created with the following details:
-                Title: {form.title.data}
-                Description: {form.description.data}
-                Creator: {current_user.email}
+            try:
+                if User.query.filter_by(is_hr=True).count() > 0:
+                    sender = current_user.email
+                    hr_emails = [user.email for user in User.query.filter_by(is_hr=True).all()]
+                    msg = Message('New Ticket Created', sender=sender, recipients=hr_emails)
+                    msg.body = f'''
+                    Dear HR,
 
-                Please check the HR dashboard for more details.
+                    A new ticket has been created with the following details:
+                    Title: {form.title.data}
+                    Description: {form.description.data}
+                    Creator: {current_user.email}
 
-                Best regards,
-                Your Company
-                '''
-                mail.send(msg)
+                    Please check the HR dashboard for more details.
+
+                    Best regards,
+                    Your Company
+                    '''
+                    mail.send(msg)
+            except SMTPException as e:
+                flash(f'An error occurred while sending the email: {str(e)}', 'danger')
+            except gaierror as e:
+                flash(f'Failed to resolve SMTP server hostname: {str(e)}', 'danger')
+
             return redirect(url_for('index'))
         return render_template('associate/create_ticket.html', form=form)
 

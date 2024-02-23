@@ -15,9 +15,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">User Dashboard</a>
-                    </li>
+                    {% if not current_user.is_hr %}  {# Add this line to check if the user is not HR #}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard') }}">User Dashboard</a>
+                        </li>
+                    {% endif %}
                 {% else %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
@@ -28,8 +30,6 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('hr_signup') }}">HR Sign Up</a>
                     </li>
-
-
                 {% endif %}
             </ul>
             <ul class="navbar-nav mr-auto">
