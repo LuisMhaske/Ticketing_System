@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SubmitField, PasswordField
+from wtforms import StringField, TextAreaField, SubmitField, PasswordField, SelectField
 from wtforms.validators import DataRequired, Email, EqualTo
 
 
@@ -35,3 +35,8 @@ class TicketForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
     description = TextAreaField('Description', validators=[DataRequired()])
     submit = SubmitField('Submit')
+
+class StatusForm(FlaskForm):
+    status_choices = [('New', 'New'), ('In Progress', 'In Progress'), ('Closed', 'Closed')]  # Define status choices
+    status = SelectField('Status', choices=status_choices, validators=[DataRequired()])
+    submit = SubmitField('Update Status')

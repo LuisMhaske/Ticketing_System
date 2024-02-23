@@ -9,7 +9,7 @@ from flask_mail import Mail, Message
 import os
 from werkzeug.security import generate_password_hash
 from flask_migrate import Migrate
-from app.forms import TicketForm, LoginForm, RegistrationForm, CommentForm, HRRegistrationForm
+from app.forms import TicketForm, LoginForm, RegistrationForm, CommentForm, HRRegistrationForm, StatusForm
 from app.models import Ticket, User, Comment
 from app.extension import db
 
@@ -22,12 +22,12 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///ticketing_system.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'your.smtp.server.com')
-    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
-    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() in ['true', '1', 't']
-    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_TLS', 'false').lower() in ['true', '1', 't']
-    app.config['MAIL_USERNAME'] = os.getenv('your email address/username')
-    app.config['MAIL_PASSWORD'] = os.getenv('your password')
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'your.smtp.server.com') #For Production Environment implement companies server details here
+    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))#For Production Environment implement companies server details here
+    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() in ['true', '1', 't'] #For Production Environment implement companies server details here
+    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_TLS', 'false').lower() in ['true', '1', 't']#For Production Environment implement companies server details here
+    app.config['MAIL_USERNAME'] = os.getenv('your email address/username')#For Production Environment implement companies server details here
+    app.config['MAIL_PASSWORD'] = os.getenv('your password')#For Production Environment implement companies server details here
 
 
     db.init_app(app)
@@ -86,7 +86,7 @@ def create_app():
                 if User.query.filter_by(is_hr=True).count() > 0:
                     sender = current_user.email
                     hr_emails = [user.email for user in User.query.filter_by(is_hr=True).all()]
-                    msg = Message('New Ticket Created', sender=sender, recipients=hr_emails)
+                    msg = Message('New Ticket Created', sender=sender, recipients=hr_emails)#functionality checked in test environment
                     msg.body = f'''
                     Dear HR,
 
@@ -100,7 +100,8 @@ def create_app():
                     Best regards,
                     Your Company
                     '''
-                    mail.send(msg)
+                    mail.send(msg)#functionality checked in test environment
+            #add exception incase there is no test server to test the functionality
             except SMTPException as e:
                 flash(f'An error occurred while sending the email: {str(e)}', 'danger')
             except gaierror as e:
@@ -116,7 +117,9 @@ def create_app():
         if current_user.id != ticket.creator_id and not current_user.is_hr:
             flash('You are not authorized to view this ticket.', 'warning')
             return redirect(url_for('index'))
-        return render_template('ticket_detail.html', ticket=ticket)
+        comment_form = CommentForm()
+        status_form = StatusForm()
+        return render_template('ticket_detail.html', ticket=ticket, comment_form=comment_form, status_form=status_form)
 
     @app.route('/ticket/<int:ticket_id>/comment', methods=['GET', 'POST'])
     @login_required
@@ -201,6 +204,21 @@ def create_app():
         db.session.commit()
         flash('HR user approved.')
         return redirect(url_for('hr_approvals'))
+
+    from flask import request, redirect, url_for
+
+    @app.route('/ticket/<int:ticket_id>/change_status', methods=['POST'])
+    @login_required
+    def change_status(ticket_id):
+        ticket = Ticket.query.get_or_404(ticket_id)
+        if current_user.is_hr:  # Only HR should be able to change the status
+            new_status = request.form.get('status')
+            ticket.status = new_status
+            db.session.commit()
+            flash('Status updated successfully!', 'success')
+        else:
+            flash('You are not authorized to change the status of this ticket.', 'danger')
+        return redirect(url_for('view_ticket', ticket_id=ticket_id))
 
     migrate = Migrate(app, db)
     return app
