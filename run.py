@@ -6,5 +6,5 @@ app.app_context().push()
 
 
 if __name__ == '__main__':
-    create_admin() #calls the methid to create Admin login details for managing HR Sign up.
-    app.run(debug=True, port=8080, use_reloader=False)
+    create_admin() #calls the method to create Admin login details for managing HR Sign up.
+    app.run(debug=True, port=5000, use_reloader=False)
