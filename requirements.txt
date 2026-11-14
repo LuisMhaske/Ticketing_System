@@ -17,5 +17,5 @@ MarkupSafe==2.1.5
 migrate==0.3.8
 SQLAlchemy==2.0.27
 typing_extensions==4.9.0
-Werkzeug==3.0.1
+Werkzeug==3.1.9
 WTForms==3.1.2
